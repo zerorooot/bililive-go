@@ -174,35 +174,32 @@ func (r *recorder) tryRecord(ctx context.Context) {
 		r.getLogger().WithError(err).Error("failed to find ffmpeg")
 		return
 	}
+
+//格式转换时去除原本后缀名
+	newFileName := fileName[0:strings.LastIndex(fileName, ".")]
+	convertCmd := exec.Command(
+		ffmpegPath,
+		"-hide_banner",
+		"-i",
+		fileName,
+		"-c",
+		"copy",
+		newFileName+".mp4",
+		)
+	if err = convertCmd.Run(); err != nil {
+		convertCmd.Process.Kill()
+		r.getLogger().Debugln(err)
+	} else if r.config.OnRecordFinished.DeleteFlvAfterConvert {
+		os.Remove(fileName)
+	}
+
 	cmdStr := strings.Trim(r.config.OnRecordFinished.CustomCommandline, "")
 	if len(cmdStr) > 0 {
-		tmpl, err := template.New("custom_commandline").Funcs(utils.GetFuncMap(r.config)).Parse(cmdStr)
-		if err != nil {
-			r.getLogger().WithError(err).Error("custom commandline parse failure")
-			return
-		}
-
-		obj, _ := r.cache.Get(r.Live)
-		info := obj.(*live.Info)
-
-		buf := new(bytes.Buffer)
-		if err := tmpl.Execute(buf, struct {
-			*live.Info
-			FileName string
-			Ffmpeg   string
-		}{
-			Info:     info,
-			FileName: fileName,
-			Ffmpeg:   ffmpegPath,
-		}); err != nil {
-			r.getLogger().WithError(err).Errorln("failed to render custom commandline")
-			return
-		}
 		bash := ""
 		args := []string{}
 		switch runtime.GOOS {
 		case "linux":
-			bash = "sh"
+			bash = "bash"
 			args = []string{"-c"}
 		case "windows":
 			bash = "cmd"
@@ -210,8 +207,8 @@ func (r *recorder) tryRecord(ctx context.Context) {
 		default:
 			r.getLogger().Warnln("Unsupport system ", runtime.GOOS)
 		}
-		args = append(args, buf.String())
-		r.getLogger().Debugf("start executing custom_commandline: %s", args[1])
+		args = append(args, cmdStr)
+		r.getLogger().Debugf("start executing custom_commandline: bash -c %s", args[1])
 		cmd := exec.Command(bash, args...)
 		if r.config.Debug {
 			cmd.Stdout = os.Stdout
@@ -219,28 +216,10 @@ func (r *recorder) tryRecord(ctx context.Context) {
 		}
 		if err = cmd.Run(); err != nil {
 			r.getLogger().WithError(err).Debugf("custom commandline execute failure (%s %s)\n", bash, strings.Join(args, " "))
-		} else if r.config.OnRecordFinished.DeleteFlvAfterConvert {
-			os.Remove(fileName)
+			return
 		}
+
 		r.getLogger().Debugf("end executing custom_commandline: %s", args[1])
-	} else if r.config.OnRecordFinished.ConvertToMp4 {
-		//格式转换时去除原本后缀名
-		newFileName := fileName[0:strings.LastIndex(fileName, ".")]
-		convertCmd := exec.Command(
-			ffmpegPath,
-			"-hide_banner",
-			"-i",
-			fileName,
-			"-c",
-			"copy",
-			newFileName+".mp4",
-		)
-		if err = convertCmd.Run(); err != nil {
-			convertCmd.Process.Kill()
-			r.getLogger().Debugln(err)
-		} else if r.config.OnRecordFinished.DeleteFlvAfterConvert {
-			os.Remove(fileName)
-		}
 	}
 }
 

@@ -196,26 +196,25 @@ func (r *recorder) tryRecord(ctx context.Context) {
 	cmdStr := strings.Trim(r.config.OnRecordFinished.CustomCommandline, "")
 	if len(cmdStr) > 0 {
 		bash := ""
-		args := []string{}
+		args := ""
 		switch runtime.GOOS {
 		case "linux":
 			bash = "bash"
-			args = []string{"-c"}
+			args = "-c"
 		case "windows":
 			bash = "cmd"
-			args = []string{"/C"}
+			args = "/C"
 		default:
 			r.getLogger().Warnln("Unsupport system ", runtime.GOOS)
 		}
-		args = append(args, cmdStr)
-		r.getLogger().Debugf("start executing custom_commandline: bash -c %s", args[1])
-		cmd := exec.Command(bash, args...)
+		r.getLogger().Debugf("start executing custom_commandline: %s %s %s", bash, args, cmdStr)
+		cmd := exec.Command(bash, args, cmdStr)
 		if r.config.Debug {
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 		}
 		if err = cmd.Run(); err != nil {
-			r.getLogger().WithError(err).Debugf("custom commandline execute failure (%s %s)\n", bash, strings.Join(args, " "))
+			r.getLogger().WithError(err).Debugf("custom commandline execute failure (%s %s)\n", bash, cmdStr)
 			return
 		}
 

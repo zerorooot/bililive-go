@@ -177,33 +177,7 @@ func (r *recorder) tryRecord(ctx context.Context) {
 		r.getLogger().WithError(err).Error("failed to find ffmpeg")
 		return
 	}
-	cmdStr := strings.Trim(r.config.OnRecordFinished.CustomCommandline, "")
-	if len(cmdStr) > 0 {
-		bash := ""
-		args := ""
-		switch runtime.GOOS {
-		case "linux":
-			bash = "bash"
-			args = "-c"
-		case "windows":
-			bash = "cmd"
-			args = "/C"
-		default:
-			r.getLogger().Warnln("Unsupport system ", runtime.GOOS)
-		}
-		r.getLogger().Debugf("start executing custom_commandline: %s %s %s", bash, args, cmdStr)
-		cmd := exec.Command(bash, args, cmdStr)
-		if r.config.Debug {
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-		}
-		if err = cmd.Run(); err != nil {
-			r.getLogger().WithError(err).Debugf("custom commandline execute failure (%s %s)\n", bash, cmdStr)
-		} else if r.config.OnRecordFinished.DeleteFlvAfterConvert {
-			os.Remove(fileName)
-		}
-		r.getLogger().Debugf("end executing custom_commandline: %s", cmdStr)
-	} else {
+
 		outputFiles := []string{fileName}
 		if r.config.OnRecordFinished.FixFlvAtFirst {
 			outputFiles, err = tools.FixFlvByBililiveRecorder(ctx, fileName)
@@ -232,7 +206,36 @@ func (r *recorder) tryRecord(ctx context.Context) {
 				}
 			}
 		}
-	}
+
+
+	
+	cmdStr := strings.Trim(r.config.OnRecordFinished.CustomCommandline, "")
+	if len(cmdStr) > 0 {
+		bash := ""
+		args := ""
+		switch runtime.GOOS {
+		case "linux":
+			bash = "bash"
+			args = "-c"
+		case "windows":
+			bash = "cmd"
+			args = "/C"
+		default:
+			r.getLogger().Warnln("Unsupport system ", runtime.GOOS)
+		}
+		r.getLogger().Debugf("start executing custom_commandline: %s %s %s", bash, args, cmdStr)
+		cmd := exec.Command(bash, args, cmdStr)
+		if r.config.Debug {
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+		}
+		if err = cmd.Run(); err != nil {
+			r.getLogger().WithError(err).Debugf("custom commandline execute failure (%s %s)\n", bash, cmdStr)
+		} else if r.config.OnRecordFinished.DeleteFlvAfterConvert {
+			os.Remove(fileName)
+		}
+		r.getLogger().Debugf("end executing custom_commandline: %s", cmdStr)
+	} 
 }
 
 func (r *recorder) run(ctx context.Context) {

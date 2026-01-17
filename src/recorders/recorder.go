@@ -191,14 +191,18 @@ func (r *recorder) tryRecord(ctx context.Context) {
 				newFileName := outputFile[0:strings.LastIndex(outputFile, ".")]
 				convertCmd := exec.Command(
 					ffmpegPath,
-					"-hide_banner",
+					//"-hide_banner",
 					"-i",
 					outputFile,
 					"-c",
 					"copy",
 					newFileName+".mp4",
 				)
+				var stderr bytes.Buffer
+				convertCmd.Stderr = &stderr
+				
 				if err = convertCmd.Run(); err != nil {
+					r.getLogger().Info("转换失败: %v | FFmpeg Log:\n%s", err, stderr.String())
 					convertCmd.Process.Kill()
 					r.getLogger().Debugln(err)
 				} else if r.config.OnRecordFinished.DeleteFlvAfterConvert {
